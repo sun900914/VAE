@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 from matplotlib import pyplot as plt
-
 import utils
 
 
@@ -62,7 +61,6 @@ def compute_loss(encoder, decoder, x, real_data):#x=sketch_data->input
     loss = tf.reduce_mean(recon_loss + kl_loss)
     return loss
 
-
 # 梯度下降優化器
 def train_step(encoder, decoder, x, real_data, optimizer):
     with tf.GradientTape() as tape:
@@ -70,14 +68,6 @@ def train_step(encoder, decoder, x, real_data, optimizer):
     gradients = tape.gradient(loss, encoder.trainable_variables + decoder.trainable_variables)
     optimizer.apply_gradients(zip(gradients, encoder.trainable_variables + decoder.trainable_variables))
     return loss
-
-
-d = utils.DataLoader()
-sketchdata, realdata = d.load_data(metrics='[-1,1]')  # metrics是可以改成'[-1,1]'，代表圖片標準化後的值區間
-test_sketchdata, test_realdata = d.load_testing_data(metrics='[-1,1]')
-
-
-
 
 def generate_data(decoder, encoder, n_samples, input_):
     # z = tf.random.normal(shape=(n_samples, latent_dim))
@@ -89,36 +79,42 @@ def generate_data(decoder, encoder, n_samples, input_):
     x_generated = decoder(z)
     return x_generated
 
-# 創建VAE
-latent_dim = 16
-encoder = Encoder(latent_dim)
-decoder = Decoder(latent_dim)
 
+if __name__=='__main__':
+    # 可改參數---------------
+    num_epochs = 10000
+    batch_size = 64
+    latent_dim = 16
+    # 可改參數---------------
 
-optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
+    # 載入資料集
+    d = utils.DataLoader()
+    sketchdata, realdata = d.load_data(metrics='[-1,1]')  # metrics是可以改成'[-1,1]'，代表圖片標準化後的值區間
+    test_sketchdata, test_realdata = d.load_testing_data(metrics='[-1,1]')
+    num_batches = sketchdata.shape[0] // batch_size
+    # 建立VAE
+    encoder = Encoder(latent_dim)
+    decoder = Decoder(latent_dim)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=1e-4)
+    # 訓練VAE
+    loss_lst = np.zeros(shape=(num_batches))
+    for epoch in range(num_epochs):
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = (batch_idx + 1) * batch_size
+            x_batch = sketchdata[start_idx:end_idx]
+            real_batch = realdata[start_idx:end_idx]
+            loss = train_step(encoder, decoder, x_batch, real_batch, optimizer)
+            loss_lst[batch_idx] = loss
+        print("Epoch: {}, Loss: {}".format(epoch+1, loss))
 
-
-num_epochs = 10000
-batch_size = 64
-num_batches = sketchdata.shape[0] // batch_size
-
-loss = None
-for epoch in range(num_epochs):
-    for batch_idx in range(num_batches):
-        start_idx = batch_idx * batch_size
-        end_idx = (batch_idx + 1) * batch_size
-        x_batch = sketchdata[start_idx:end_idx]
-        real_batch = realdata[start_idx:end_idx]
-        loss = train_step(encoder, decoder, x_batch, real_batch, optimizer)
-    print("Epoch: {}, Loss: {}".format(epoch+1, loss))
-
-x_generated = generate_data(decoder,encoder, 16, sketchdata)
-
-# 顯示生成的數據
-fig, axs = plt.subplots(4, 4, figsize=(6, 6))
-axs = axs.flatten()
-for i in range(16):
-    axs[i].imshow(x_generated[i, :, :, 0])
-    axs[i].axis("off")
-plt.tight_layout()
-plt.show()
+    # predict
+    x_generated = generate_data(decoder,encoder, 16, sketchdata)
+    # 顯示生成的數據
+    fig, axs = plt.subplots(4, 4, figsize=(6, 6))
+    axs = axs.flatten()
+    for i in range(16):
+        axs[i].imshow(x_generated[i, :, :, 0])
+        axs[i].axis("off")
+    plt.tight_layout()
+    plt.show()
