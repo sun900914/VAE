@@ -114,7 +114,7 @@ if __name__=='__main__':
     fig, axs = plt.subplots(4, 4, figsize=(6, 6))
     axs = axs.flatten()
     for i in range(16):
-        axs[i].imshow(x_generated[i, :, :, 0])
+        axs[i].imshow(x_generated[i])
         axs[i].axis("off")
     plt.tight_layout()
     plt.show()
